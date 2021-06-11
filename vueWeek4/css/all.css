@@ -1,0 +1,19 @@
+html,
+body{
+    height: 100%;
+    text-align: center;
+    background-color: #e9ecef;
+}
+ 
+body{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.form-signin {
+    width: 100%;
+    max-width: 330px;
+    padding: 15px;
+    margin: auto;
+}
