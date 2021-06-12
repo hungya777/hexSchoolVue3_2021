@@ -7,8 +7,6 @@ let delProductModal = null;
 const app = createApp({
     data(){
         return{
-            apiUrl: 'https://vue3-course-api.hexschool.io',
-            apiPath: 'hungya777',
             products: [],
             isNew: false,
             tempProduct:{   //用於open Modal使用
@@ -42,7 +40,7 @@ const app = createApp({
     methods:{
         //GET 後台取得產品資訊   
         getData(page = 1){
-            const api = `${this.apiUrl}/api/${this.apiPath}/admin/products?page=${page}`;
+            const api = `${apiUrl}/api/${apiPath}/admin/products?page=${page}`;
             console.log(api);
             axios.get(api)
                 .then( res => {
@@ -87,12 +85,12 @@ const app = createApp({
         },
         updateProduct(tempProduct){
             //新增
-            let api = `${this.apiUrl}/api/${this.apiPath}/admin/product`;
+            let api = `${apiUrl}/api/${apiPath}/admin/product`;
             let httpMethod = 'post';
             //根據isNew 來判斷要串接 post 或是 put API
             if(!this.isNew){
                 //編輯狀態
-                api = `${this.apiUrl}/api/${this.apiPath}/admin/product/${tempProduct.id}`;
+                api = `${apiUrl}/api/${apiPath}/admin/product/${tempProduct.id}`;
                 httpMethod = 'put';
             }
 
@@ -111,7 +109,8 @@ const app = createApp({
                 })
         },
         deleteProduct(tempProduct){
-            const url = `${this.apiUrl}/api/${this.apiPath}/admin/product/${tempProduct.id}`;
+            console.log('是否觸發刪除');
+            const url = `${apiUrl}/api/${apiPath}/admin/product/${tempProduct.id}`;
             
             axios.delete(url)
                 .then( res => {
@@ -126,14 +125,18 @@ const app = createApp({
                 .catch( res => {
                     console.log(res);
                 })
-        },
+        },    
     },
 });
 
 // 註冊全域元件 , 放置在 createApp 後方，app.mount之前
-// Modal
+// #Modal_新增/編輯
 app.component('productModal',{
-    // emits: ["update-product","delete-product"],
+    data(){
+        return{
+            tempfile:{},   //取得上傳圖檔
+        }
+    },
     props:['tempProduct','isNew'],
     template:`<div id="productModal" class="modal fade" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -149,11 +152,18 @@ app.component('productModal',{
                 <div class="row">
                     <div class="col-sm-4">
                         <div class="form-group">
-                            <label for="imageUrl">主要圖片</label>
+                            <label for="imageUrl"><strong>主要圖片</strong></label>
                             <input v-model="tempProduct.imageUrl" type="text" class="form-control" placeholder="請輸入圖片連結"> 
                             <img class="img-fluid" :src="tempProduct.imageUrl"> <!-- img-fluid : 設定為響應式圖片，運用 max-width: 100%; 和 height: auto;，讓圖片可依父元素進行縮放。 -->
+                            <div>
+                                <label class="btn btn-outline-success btn-sm d-block w-100 my-3">
+                                <input id="upload-main-img" style="display:none;" type="file" @change="uploadImg">
+                                    <span v-if="isNew">上傳主要圖片</span>
+                                    <span v-else>更換主要圖片</span>
+                                </label>
+                            </div>
                         </div>
-                        <div class="mb-1">多圖新增</div>
+                        <div class="mb-1"><strong>多圖新增</strong></div>
                         <!-- tempProduct.imagesUrl有陣列 => 執行    Array.isArray([])=true -->
                         <div v-if="Array.isArray(tempProduct.imagesUrl)">
                             <div class="mb-1" v-for="(image, key) in tempProduct.imagesUrl" :key="key">
@@ -176,6 +186,12 @@ app.component('productModal',{
 
                             <!--陣列長度不為0 || 陣列中有空值 =>執行-->
                             <div v-else>
+                                <div>
+                                    <label class="btn btn-outline-success btn-sm d-block w-100 my-3">
+                                    <input id="upload-other-img" style="display:none;" type="file" @change="uploadImg">
+                                    上傳圖片
+                                    </label>
+                                </div>
                                 <button class="btn btn-outline-danger btn-sm d-block w-100" @click="tempProduct.imagesUrl.pop()">
                                 刪除圖片
                                 </button>
@@ -247,10 +263,40 @@ app.component('productModal',{
             </div>
             </div>
         </div>
-    </div>
+    </div>`,
+    methods:{
+        createImages(){
+            this.tempProduct.imagesUrl = [];
+            this.tempProduct.imagesUrl.push('');
+        },
+        uploadImg(e){ 
+            // // #1 撰寫上傳的 API 事件
+            console.dir(e);
+            const btnID = e.target.id;
+            console.log(btnID);           
+            const file = e.target.files[0]; //上傳一個檔案，檔案會在陣列第一個位置(index: 0)
+            this.tempfile = file;
+            const formData = new FormData();  //建構函式 FormData(): 將資料轉成類似傳統表單的形式來進行發送
+            formData.append('file-to-upload', this.tempfile);
+            axios.post(`${apiUrl}/api/${apiPath}/admin/upload`, formData)
+            .then(res => {
+              console.log(res);
+              if(res.data.success){
+                if(btnID === "upload-main-img"){
+                    this.tempProduct.imageUrl = res.data.imageUrl;
+                }else if(btnID === "upload-other-img"){
+                    this.tempProduct.imagesUrl[this.tempProduct.imagesUrl.length-1] = res.data.imageUrl;
+                }  
+              }
+            })
+        },   
+    },
+});
 
-
-    <div id="delProductModal" class="modal fade" tabindex="-1" aria-labelledby="delProductModalLabel" aria-hidden="true">
+// #Modal_刪除
+app.component('deleteModal',{
+    props:['tempProduct'],
+    template:`<div id="delProductModal" class="modal fade" tabindex="-1" aria-labelledby="delProductModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-danger text-white">
@@ -274,43 +320,6 @@ app.component('productModal',{
             </div>
         </div>
     </div>`,
-    methods:{
-        createImages(){
-            this.tempProduct.imagesUrl = [];
-            this.tempProduct.imagesUrl.push('');
-        },
-    },
 });
-
-// app.component('pagination',{
-//     props:['page'],
-//     template: `<nav aria-label="Page navigation example">
-//         <ul class="pagination">
-//         <!--往前一頁; :class="{'disabled': !page.has_pre}" 當頁碼沒有前一頁時鎖住往前一頁功能-->
-//         <li class="page-item" :class="{'disabled': !page.has_pre }">
-//             <a class="page-link" href="#" aria-label="Previous"
-//             @click="$emit('get-data', page.current_page -1)">
-//                 <span aria-hidden="true">&laquo;</span>
-//             </a>
-//         </li>
-//         <!--中間頁碼; :class="{ 'active': item === page.current_page}判斷目前頁面跟當前頁面是否一致,若一致就套用active的視覺效果--> 
-//         <li class="page-item" 
-//             :class = "{'active': item === page.current_page}"
-//             v-for="item in page.total_pages" :key="item">
-//             <a class="page-link" href="#" @click="$emit('get-data', item)">{{ item }}</a>
-//         </li>
-//         <!--往後一頁; :class="{'disabled': !page.has_pre}" 當頁碼沒有後一頁時鎖住往後一頁功能-->
-//         <li class="page-item" :class="{'disabled': !page.has_next}">
-//             <a class="page-link" href="#" aria-label="Next"
-//             @click="$emit('get-data', page.current_page +1)">
-//                 <span aria-hidden="true">&raquo;</span>
-//             </a>
-//         </li>
-//         </ul>
-//     </nav>`,
-//     created(){
-//         console.log(this.page);
-//     }
-// });
 
 app.mount('#app');
